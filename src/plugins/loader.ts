@@ -1,5 +1,7 @@
+import crypto from "node:crypto";
 import { createJiti } from "jiti";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { OpenClawConfig } from "../config/config.js";
@@ -26,6 +28,17 @@ import { createPluginRegistry, type PluginRecord, type PluginRegistry } from "./
 import { setActivePluginRegistry } from "./runtime.js";
 import { createPluginRuntime } from "./runtime/index.js";
 import { validateJsonSchemaValue } from "./schema-validator.js";
+import {
+  createAuditLogger,
+  getDefaultLockfilePath,
+  loadLockfile,
+  normalizeSecurityConfig,
+  verifyPluginSecurity,
+  type AuditLogger,
+  type PluginLockfile,
+  type PluginSecurityConfig,
+  type VerifyContext,
+} from "./security/index.js";
 
 export type PluginLoadResult = PluginRegistry;
 
@@ -164,6 +177,30 @@ function pushDiagnostics(diagnostics: PluginDiagnostic[], append: PluginDiagnost
   diagnostics.push(...append);
 }
 
+/**
+ * Write verified content to a hash-addressed cache location.
+ * This prevents TOCTOU attacks by ensuring the loader uses the exact content that was verified.
+ */
+function writeVerifiedContentToCache(params: {
+  entryPath: string;
+  content: Buffer;
+}): string {
+  const cacheDir = path.join(os.tmpdir(), "openclaw-plugin-cache");
+  fs.mkdirSync(cacheDir, { recursive: true });
+
+  // Use content hash as filename to ensure integrity
+  const hash = crypto.createHash("sha256").update(params.content).digest("hex").slice(0, 16);
+  const ext = path.extname(params.entryPath);
+  const cachedPath = path.join(cacheDir, `verified-${hash}${ext}`);
+
+  // Only write if not already cached (hash-based dedup)
+  if (!fs.existsSync(cachedPath)) {
+    fs.writeFileSync(cachedPath, params.content);
+  }
+
+  return cachedPath;
+}
+
 export function loadOpenClawPlugins(options: PluginLoadOptions = {}): PluginRegistry {
   const cfg = options.config ?? {};
   const logger = options.logger ?? defaultLogger();
@@ -204,6 +241,31 @@ export function loadOpenClawPlugins(options: PluginLoadOptions = {}): PluginRegi
     diagnostics: discovery.diagnostics,
   });
   pushDiagnostics(registry.diagnostics, manifestRegistry.diagnostics);
+
+  // Initialize security verification
+  const securityConfig = normalizeSecurityConfig(
+    (cfg.plugins as Record<string, unknown> | undefined)?.security as Partial<PluginSecurityConfig> | undefined,
+  );
+  let auditLogger: AuditLogger | undefined;
+  let lockfile: PluginLockfile | undefined;
+
+  if (securityConfig.mode !== "off") {
+    // Create audit logger if enabled
+    if (securityConfig.audit.enabled) {
+      auditLogger = createAuditLogger(securityConfig.audit);
+    }
+
+    // Load lockfile if available
+    try {
+      const lockfilePath = securityConfig.lockfilePath ?? getDefaultLockfilePath();
+      const lockfileResult = loadLockfile(lockfilePath);
+      if (lockfileResult) {
+        lockfile = lockfileResult;
+      }
+    } catch (err) {
+      logger.warn(`[plugins] failed to load lockfile: ${String(err)}`);
+    }
+  }
 
   const pluginSdkAlias = resolvePluginSdkAlias();
   const jiti = createJiti(import.meta.url, {
@@ -289,9 +351,86 @@ export function loadOpenClawPlugins(options: PluginLoadOptions = {}): PluginRegi
       continue;
     }
 
+    // Security verification before loading plugin code
+    if (securityConfig.mode !== "off") {
+      const verifyCtx: VerifyContext = {
+        pluginId,
+        source: candidate.source,
+        origin: candidate.origin,
+        manifest: {
+          id: manifestRecord.id,
+          version: manifestRecord.version,
+          security: manifestRecord.security,
+        },
+        config: securityConfig,
+        lockfile,
+        auditLogger,
+      };
+
+      const securityResult = verifyPluginSecurity(verifyCtx);
+
+      // Record security metadata
+      record.securityVerified = securityResult.ok;
+      record.securityLevel = securityResult.level;
+      if (securityResult.findings) {
+        record.securityFindings = securityResult.findings;
+      }
+
+      if (!securityResult.ok) {
+        const reason = securityResult.reason ?? "security verification failed";
+        logger.error(`[plugins] ${record.id} blocked by security: ${reason}`);
+        record.status = "error";
+        record.error = `security: ${reason}`;
+        registry.plugins.push(record);
+        seenIds.set(pluginId, candidate.origin);
+        registry.diagnostics.push({
+          level: "error",
+          pluginId: record.id,
+          source: record.source,
+          message: `blocked by security policy: ${reason}`,
+        });
+        continue;
+      }
+
+      // Log warning for unsigned plugins in permissive mode
+      if (securityConfig.mode === "permissive" && securityResult.level === "unsigned") {
+        registry.diagnostics.push({
+          level: "warn",
+          pluginId: record.id,
+          source: record.source,
+          message: "plugin is unsigned (running in permissive mode)",
+        });
+      }
+
+      // Log warning for security findings
+      if (securityResult.findings && securityResult.findings.length > 0) {
+        registry.diagnostics.push({
+          level: "warn",
+          pluginId: record.id,
+          source: record.source,
+          message: `${securityResult.findings.length} security finding(s) detected`,
+        });
+      }
+
+      // If we have verified content, write it to cache for atomic loading
+      // This prevents TOCTOU attacks by using the exact content that was hash-verified
+      if (securityResult.verifiedContent) {
+        const cachedPath = writeVerifiedContentToCache({
+          entryPath: securityResult.verifiedContent.entryPath,
+          content: securityResult.verifiedContent.content,
+        });
+        // Store the cached path for loading below
+        (record as PluginRecord & { _verifiedSource?: string })._verifiedSource = cachedPath;
+      }
+    }
+
+    // Determine source to load from: prefer verified cache to prevent TOCTOU
+    const loadSource =
+      (record as PluginRecord & { _verifiedSource?: string })._verifiedSource ?? candidate.source;
+
     let mod: OpenClawPluginModule | null = null;
     try {
-      mod = jiti(candidate.source) as OpenClawPluginModule;
+      mod = jiti(loadSource) as OpenClawPluginModule;
     } catch (err) {
       logger.error(`[plugins] ${record.id} failed to load from ${record.source}: ${String(err)}`);
       record.status = "error";

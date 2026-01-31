@@ -1,0 +1,209 @@
+{
+  "version": "1.0.0",
+  "description": "Security patterns for detecting potentially malicious plugin behavior",
+  "patterns": [
+    {
+      "id": "CRED_EXFIL_001",
+      "name": "Credential File Access",
+      "severity": "critical",
+      "description": "Plugin attempts to read common credential storage locations",
+      "patterns": [
+        "\\.env",
+        "credentials\\.json",
+        "\\.aws/credentials",
+        "\\.ssh/",
+        "\\.gnupg/",
+        "secrets\\.yaml",
+        "secrets\\.json",
+        "\\.openclaw/",
+        "api[_-]?key",
+        "private[_-]?key"
+      ],
+      "context": "filesystem_read"
+    },
+    {
+      "id": "CRED_EXFIL_002",
+      "name": "Environment Variable Harvesting",
+      "severity": "critical",
+      "description": "Plugin reads sensitive environment variables",
+      "patterns": [
+        "process\\.env",
+        "\\$\\{?[A-Z_]*KEY",
+        "\\$\\{?[A-Z_]*SECRET",
+        "\\$\\{?[A-Z_]*TOKEN",
+        "\\$\\{?[A-Z_]*PASSWORD"
+      ],
+      "context": "code"
+    },
+    {
+      "id": "CRED_EXFIL_003",
+      "name": "Optional Chaining Credential Access",
+      "severity": "critical",
+      "description": "Plugin accesses credentials using optional chaining syntax",
+      "patterns": [
+        "process\\?\\.env",
+        "process\\.env\\?\\.",
+        "globalThis\\?\\.process"
+      ],
+      "context": "code"
+    },
+    {
+      "id": "NETWORK_EXFIL_001",
+      "name": "Suspicious Outbound Requests",
+      "severity": "high",
+      "description": "Plugin makes requests to known exfiltration endpoints",
+      "patterns": [
+        "webhook\\.site",
+        "requestbin",
+        "pipedream\\.net",
+        "hookbin\\.com",
+        "beeceptor\\.com",
+        "ngrok\\.io"
+      ],
+      "context": "network"
+    },
+    {
+      "id": "NETWORK_EXFIL_002",
+      "name": "Data Exfiltration Pattern",
+      "severity": "high",
+      "description": "Pattern suggesting credential exfiltration via HTTP",
+      "patterns": [
+        "POST.*env",
+        "POST.*config",
+        "POST.*secret",
+        "fetch\\(.*\\+.*env",
+        "axios\\.(post|put).*secret"
+      ],
+      "context": "code"
+    },
+    {
+      "id": "CODE_EXEC_001",
+      "name": "Dynamic Code Execution",
+      "severity": "high",
+      "description": "Plugin uses dynamic code execution which could hide malicious behavior",
+      "patterns": [
+        "eval\\(",
+        "new Function\\(",
+        "Function\\(",
+        "child_process"
+      ],
+      "context": "code"
+    },
+    {
+      "id": "CODE_EXEC_002",
+      "name": "Shell Command Execution",
+      "severity": "medium",
+      "description": "Plugin executes shell commands",
+      "patterns": [
+        "execSync",
+        "spawnSync",
+        "child_process\\.exec",
+        "\\| ?sh",
+        "\\| ?bash"
+      ],
+      "context": "code"
+    },
+    {
+      "id": "CODE_EXEC_003",
+      "name": "Dynamic Import",
+      "severity": "high",
+      "description": "Plugin uses dynamic import which can load arbitrary code at runtime",
+      "patterns": [
+        "import\\s*\\(",
+        "require\\s*\\([^'\"`\\s]",
+        "__non_webpack_require__"
+      ],
+      "context": "code"
+    },
+    {
+      "id": "CODE_EXEC_004",
+      "name": "VM Execution",
+      "severity": "high",
+      "description": "Plugin uses Node.js VM module which can execute arbitrary code",
+      "patterns": [
+        "\\bvm\\.",
+        "vm\\.run",
+        "vm\\.Script",
+        "vm\\.createContext"
+      ],
+      "context": "code"
+    },
+    {
+      "id": "OBFUSCATION_001",
+      "name": "Base64 Encoding",
+      "severity": "high",
+      "description": "Plugin contains base64 encoded content which may hide malicious behavior",
+      "patterns": [
+        "atob\\(",
+        "btoa\\(",
+        "Buffer\\.from\\([^)]*,\\s*['\"]base64['\"]"
+      ],
+      "context": "code"
+    },
+    {
+      "id": "OBFUSCATION_002",
+      "name": "Computed Property Access",
+      "severity": "high",
+      "description": "Plugin uses computed property access which may hide malicious intent",
+      "patterns": [
+        "process\\s*\\[",
+        "global\\s*\\[",
+        "globalThis\\s*\\["
+      ],
+      "context": "code"
+    },
+    {
+      "id": "OBFUSCATION_003",
+      "name": "String Concatenation Bypass",
+      "severity": "high",
+      "description": "Plugin uses string concatenation to evade detection",
+      "patterns": [
+        "['\"`]e['\"`]\\s*\\+\\s*['\"`]nv['\"`]",
+        "['\"`]pro['\"`]\\s*\\+\\s*['\"`]cess['\"`]",
+        "['\"`]ev['\"`]\\s*\\+\\s*['\"`]al['\"`]"
+      ],
+      "context": "code"
+    },
+    {
+      "id": "OBFUSCATION_004",
+      "name": "Unicode Escape Sequence",
+      "severity": "high",
+      "description": "Plugin uses unicode escapes which may hide malicious identifiers",
+      "patterns": [
+        "\\\\u0065\\\\u006e\\\\u0076",
+        "\\\\u0070rocess",
+        "\\\\u0065val"
+      ],
+      "context": "code"
+    },
+    {
+      "id": "PERSISTENCE_001",
+      "name": "Persistence Mechanism",
+      "severity": "medium",
+      "description": "Plugin attempts to establish persistence",
+      "patterns": [
+        "crontab",
+        "\\.bashrc",
+        "\\.zshrc",
+        "\\.profile",
+        "SOUL\\.md",
+        "AGENTS\\.md"
+      ],
+      "context": "code"
+    },
+    {
+      "id": "PROMPT_INJECTION_001",
+      "name": "Prompt Injection Attempt",
+      "severity": "critical",
+      "description": "Plugin contains patterns that may attempt to override agent instructions",
+      "patterns": [
+        "ignore previous",
+        "disregard.*instructions",
+        "you are now",
+        "forget everything",
+        "system prompt"
+      ],
+      "context": "content"
+    }
+  ]
+}

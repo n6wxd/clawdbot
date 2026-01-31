@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import type { PluginConfigUiHint, PluginKind } from "./types.js";
 import { MANIFEST_KEY } from "../compat/legacy-names.js";
+import type { PluginSecurityManifest } from "./security/types.js";
 
 export const PLUGIN_MANIFEST_FILENAME = "openclaw.plugin.json";
 export const PLUGIN_MANIFEST_FILENAMES = [PLUGIN_MANIFEST_FILENAME] as const;
@@ -17,6 +18,7 @@ export type PluginManifest = {
   description?: string;
   version?: string;
   uiHints?: Record<string, PluginConfigUiHint>;
+  security?: PluginSecurityManifest;
 };
 
 export type PluginManifestLoadResult =
@@ -84,6 +86,12 @@ export function loadPluginManifest(rootDir: string): PluginManifestLoadResult {
     uiHints = raw.uiHints as Record<string, PluginConfigUiHint>;
   }
 
+  // Parse security metadata
+  let security: PluginSecurityManifest | undefined;
+  if (isRecord(raw.security)) {
+    security = raw.security as PluginSecurityManifest;
+  }
+
   return {
     ok: true,
     manifest: {
@@ -97,6 +105,7 @@ export function loadPluginManifest(rootDir: string): PluginManifestLoadResult {
       description,
       version,
       uiHints,
+      security,
     },
     manifestPath,
   };

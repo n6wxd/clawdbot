@@ -63,7 +63,13 @@ describe("exec PATH login shell merge", () => {
   const originalPath = process.env.PATH;
 
   afterEach(() => {
-    process.env.PATH = originalPath;
+    // Setting process.env.X = undefined sets it to the string "undefined",
+    // so we need to delete the key if the original was undefined.
+    if (originalPath === undefined) {
+      delete process.env.PATH;
+    } else {
+      process.env.PATH = originalPath;
+    }
   });
 
   it("merges login-shell PATH for host=gateway", async () => {

@@ -72,10 +72,11 @@ describe("getShellConfig", () => {
     expect(shell).toBe("/usr/bin/fish");
   });
 
-  it("uses sh when SHELL is unset", () => {
+  it("uses absolute sh path when SHELL is unset", () => {
     delete process.env.SHELL;
     process.env.PATH = "";
     const { shell } = getShellConfig();
-    expect(shell).toBe("sh");
+    // Falls back to /bin/sh when SHELL is unset and sh not found in PATH
+    expect(shell).toBe("/bin/sh");
   });
 });

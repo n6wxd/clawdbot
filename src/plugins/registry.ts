@@ -119,6 +119,16 @@ export type PluginRecord = {
   configSchema: boolean;
   configUiHints?: Record<string, PluginConfigUiHint>;
   configJsonSchema?: Record<string, unknown>;
+  // Security verification status
+  securityVerified?: boolean;
+  securityLevel?: "unsigned" | "hashed" | "signed" | "verified";
+  securityFindings?: Array<{
+    id: string;
+    severity: "critical" | "high" | "medium" | "low";
+    file: string;
+    line?: number;
+    message: string;
+  }>;
 };
 
 export type PluginRegistry = {

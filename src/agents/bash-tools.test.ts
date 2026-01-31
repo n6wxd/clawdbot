@@ -79,7 +79,13 @@ describe("exec tool backgrounding", () => {
 
   afterEach(() => {
     if (!isWin) {
-      process.env.SHELL = originalShell;
+      // Setting process.env.X = undefined sets it to the string "undefined",
+      // so we need to delete the key if the original was undefined.
+      if (originalShell === undefined) {
+        delete process.env.SHELL;
+      } else {
+        process.env.SHELL = originalShell;
+      }
     }
   });
 
@@ -312,9 +318,19 @@ describe("exec PATH handling", () => {
   });
 
   afterEach(() => {
-    process.env.PATH = originalPath;
+    // Setting process.env.X = undefined sets it to the string "undefined",
+    // so we need to delete the key if the original was undefined.
+    if (originalPath === undefined) {
+      delete process.env.PATH;
+    } else {
+      process.env.PATH = originalPath;
+    }
     if (!isWin) {
-      process.env.SHELL = originalShell;
+      if (originalShell === undefined) {
+        delete process.env.SHELL;
+      } else {
+        process.env.SHELL = originalShell;
+      }
     }
   });
 

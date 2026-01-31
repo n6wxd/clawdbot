@@ -45,7 +45,10 @@ export function getShellConfig(): { shell: string; args: string[] } {
       return { shell: sh, args: ["-c"] };
     }
   }
-  const shell = envShell && envShell.length > 0 ? envShell : "sh";
+  // Use absolute path for fallback to ensure shell is found even when subprocess
+  // has a custom PATH that doesn't include standard shell directories.
+  const fallbackShell = resolveShellFromPath("sh") ?? "/bin/sh";
+  const shell = envShell && envShell.length > 0 ? envShell : fallbackShell;
   return { shell, args: ["-c"] };
 }
 

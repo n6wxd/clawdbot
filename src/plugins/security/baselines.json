@@ -1,0 +1,57 @@
+{
+  "version": "1.0.0",
+  "description": "Performance baseline targets for plugin security verification",
+  "targets": {
+    "hashFile": {
+      "p95_ms": 5,
+      "description": "SHA-256 hash of single file"
+    },
+    "hashDirectory": {
+      "p95_ms": 20,
+      "description": "SHA-256 hash of plugin directory"
+    },
+    "keyGeneration": {
+      "p95_ms": 5,
+      "description": "Ed25519 key pair generation"
+    },
+    "signManifest": {
+      "p95_ms": 5,
+      "description": "Sign manifest with Ed25519"
+    },
+    "verifySignature": {
+      "p95_ms": 10,
+      "description": "Verify Ed25519 signature"
+    },
+    "scanFile": {
+      "p95_ms": 50,
+      "description": "Static analysis of single file"
+    },
+    "scanDirectory": {
+      "p95_ms": 100,
+      "description": "Static analysis of plugin directory"
+    },
+    "verifyOff": {
+      "p95_ms": 1,
+      "description": "Full verification with security disabled"
+    },
+    "verifyPermissive": {
+      "p95_ms": 50,
+      "description": "Full verification in permissive mode"
+    },
+    "verifyStrict": {
+      "p95_ms": 150,
+      "description": "Full verification in strict mode with scanning"
+    }
+  },
+  "overhead": {
+    "permissive_max_percent": 50,
+    "strict_max_percent": 200,
+    "description": "Maximum acceptable overhead vs disabled verification"
+  },
+  "notes": [
+    "Baselines measured on typical development machine",
+    "Plugin size: ~10KB source code, 3 files",
+    "All times are P95 (95th percentile)",
+    "Targets should be achievable on most modern hardware"
+  ]
+}

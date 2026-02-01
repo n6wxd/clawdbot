@@ -2,6 +2,12 @@
 
 Docs: https://docs.openclaw.ai
 
+## 2026.2.1
+
+### Changes
+
+- Plugins: add skill-guardian security verification module with hash verification, malicious pattern detection, and configurable security modes.
+
 ## 2026.1.31
 
 ### Changes

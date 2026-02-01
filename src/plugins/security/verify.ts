@@ -5,6 +5,7 @@
  * Orchestrates hash, signature, lockfile, and scan checks.
  */
 
+import fs from "node:fs";
 import path from "node:path";
 
 import type {
@@ -362,13 +363,8 @@ function resolveEntryPoint(manifestPath: string): string | null {
 
   for (const candidate of candidates) {
     const fullPath = path.join(dir, candidate);
-    try {
-      const fs = require("node:fs");
-      if (fs.existsSync(fullPath)) {
-        return fullPath;
-      }
-    } catch {
-      // Continue
+    if (fs.existsSync(fullPath)) {
+      return fullPath;
     }
   }
 

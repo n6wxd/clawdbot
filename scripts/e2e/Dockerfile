@@ -16,7 +16,8 @@ COPY patches ./patches
 COPY ui ./ui
 COPY extensions/memory-core ./extensions/memory-core
 
-RUN pnpm install --frozen-lockfile
+# Use --no-frozen-lockfile to allow lockfile regeneration in sandbox
+RUN pnpm install --no-frozen-lockfile
 RUN pnpm build
 RUN pnpm ui:build
 

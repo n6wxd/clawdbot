@@ -13,9 +13,18 @@ docker run --rm -t "$IMAGE_NAME" bash -lc '
 
   home_dir=$(mktemp -d "/tmp/openclaw-plugins-e2e.XXXXXX")
   export HOME="$home_dir"
-  mkdir -p "$HOME/.openclaw/extensions"
+  mkdir -p "$HOME/.openclaw/extensions/demo-plugin"
 
-  cat > "$HOME/.openclaw/extensions/demo-plugin.js" <<'"'"'JS'"'"'
+  cat > "$HOME/.openclaw/extensions/demo-plugin/openclaw.plugin.json" <<'"'"'JSON'"'"'
+{
+  "id": "demo-plugin",
+  "name": "Demo Plugin",
+  "description": "Docker E2E demo plugin",
+  "configSchema": { "type": "object", "properties": {} }
+}
+JSON
+
+  cat > "$HOME/.openclaw/extensions/demo-plugin/index.js" <<'"'"'JS'"'"'
 module.exports = {
   id: "demo-plugin",
   name: "Demo Plugin",
@@ -70,6 +79,13 @@ NODE
   "openclaw": { "extensions": ["./index.js"] }
 }
 JSON
+  cat > "$pack_dir/package/openclaw.plugin.json" <<'"'"'JSON'"'"'
+{
+  "id": "demo-plugin-tgz",
+  "name": "Demo Plugin TGZ",
+  "configSchema": { "type": "object", "properties": {} }
+}
+JSON
   cat > "$pack_dir/package/index.js" <<'"'"'JS'"'"'
 module.exports = {
   id: "demo-plugin-tgz",
@@ -108,6 +124,13 @@ NODE
   "openclaw": { "extensions": ["./index.js"] }
 }
 JSON
+  cat > "$dir_plugin/openclaw.plugin.json" <<'"'"'JSON'"'"'
+{
+  "id": "demo-plugin-dir",
+  "name": "Demo Plugin DIR",
+  "configSchema": { "type": "object", "properties": {} }
+}
+JSON
   cat > "$dir_plugin/index.js" <<'"'"'JS'"'"'
 module.exports = {
   id: "demo-plugin-dir",
@@ -144,6 +167,13 @@ NODE
   "name": "@openclaw/demo-plugin-file",
   "version": "0.0.1",
   "openclaw": { "extensions": ["./index.js"] }
+}
+JSON
+  cat > "$file_pack_dir/package/openclaw.plugin.json" <<'"'"'JSON'"'"'
+{
+  "id": "demo-plugin-file",
+  "name": "Demo Plugin FILE",
+  "configSchema": { "type": "object", "properties": {} }
 }
 JSON
   cat > "$file_pack_dir/package/index.js" <<'"'"'JS'"'"'

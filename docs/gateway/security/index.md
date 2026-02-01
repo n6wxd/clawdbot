@@ -175,7 +175,48 @@ Plugins run **in-process** with the Gateway. Treat them as trusted code:
   - OpenClaw uses `npm pack` and then runs `npm install --omit=dev` in that directory (npm lifecycle scripts can execute code during install).
   - Prefer pinned, exact versions (`@scope/pkg@1.2.3`), and inspect the unpacked code on disk before enabling.
 
-Details: [Plugins](/plugin)
+### Plugin security verification (skill-guardian)
+
+OpenClaw includes a security verification module that provides defense-in-depth for plugins:
+
+- **Hash verification**: Verify plugin content integrity against manifest hashes
+- **Signature verification**: Validate Ed25519 signatures from trusted publishers
+- **Static analysis**: Detect malicious patterns (credential exfiltration, code execution, obfuscation)
+- **Lockfile pinning**: HMAC-authenticated lockfile prevents post-install tampering
+- **Audit logging**: Complete event trail for security forensics
+
+Configure security mode:
+
+```json5
+{
+  plugins: {
+    security: {
+      mode: "strict",        // Block unsigned plugins
+      trustBundled: true,    // Trust bundled plugins
+      enableScanning: true,  // Enable pattern detection
+    },
+  },
+}
+```
+
+Security modes:
+
+- `strict`: Block unsigned/unverified plugins (recommended for production)
+- `permissive`: Warn but allow (default, good for development)
+- `off`: No verification (not recommended)
+
+The scanner detects patterns including:
+
+- Credential exfiltration (`.env`, `process.env`, `.ssh`, `.aws/credentials`)
+- Dynamic code execution (`eval`, `new Function`, `child_process`)
+- Network exfiltration (webhook.site, requestbin, pipedream)
+- Obfuscation (base64, computed properties, Unicode escapes)
+- Persistence mechanisms (`.bashrc`, `.zshrc`, crontab)
+- Prompt injection attempts
+
+Audit logs are written to `~/.openclaw/audit/plugins.jsonl`.
+
+Details: [Plugins](/plugin#plugin-security-skill-guardian)
 
 ## DM access model (pairing / allowlist / open / disabled)
 

@@ -656,6 +656,173 @@ Plugins run in-process with the Gateway. Treat them as trusted code:
 - Prefer `plugins.allow` allowlists.
 - Restart the Gateway after changes.
 
+## Plugin security (skill-guardian)
+
+OpenClaw includes a security verification module that protects against malicious plugins through hash verification, signature validation, static analysis, and audit logging.
+
+### Security modes
+
+Configure via `plugins.security.mode`:
+
+- `strict`: Block unsigned plugins (except bundled). Recommended for production.
+- `permissive` (default): Warn but allow unsigned plugins. Good for development.
+- `off`: No verification (not recommended).
+
+```json5
+{
+  plugins: {
+    security: {
+      mode: "strict",
+      trustBundled: true,
+      enableScanning: true,
+    },
+  },
+}
+```
+
+### Hash verification
+
+Plugins can include a content hash in their manifest for integrity verification:
+
+```json
+{
+  "id": "my-plugin",
+  "security": {
+    "hash": "sha256:abc123..."
+  }
+}
+```
+
+OpenClaw verifies the hash atomically (read-and-verify) to prevent TOCTOU attacks.
+
+### Signature verification
+
+Plugins can be signed with Ed25519 keys. Add trusted keys to your config:
+
+```json5
+{
+  plugins: {
+    security: {
+      trustedKeys: [
+        {
+          id: "publisher-key-id",
+          publicKey: "base64-encoded-public-key",
+          label: "Official Publisher",
+        },
+      ],
+    },
+  },
+}
+```
+
+Signed plugins include signature metadata in their manifest:
+
+```json
+{
+  "id": "my-plugin",
+  "security": {
+    "signature": "base64-signature",
+    "signedBy": "publisher-key-id"
+  }
+}
+```
+
+### Static analysis (malicious pattern detection)
+
+The scanner detects dangerous patterns in plugin source code:
+
+| Category | Examples |
+|----------|----------|
+| Credential exfiltration | `.env`, `.ssh`, `.aws/credentials`, `process.env` access |
+| Code execution | `eval()`, `new Function()`, `child_process`, `vm` module |
+| Network exfiltration | Requests to webhook.site, requestbin, pipedream |
+| Obfuscation | Base64 encoding, computed property access, Unicode escapes |
+| Persistence | Modifications to `.bashrc`, `.zshrc`, crontab |
+| Prompt injection | "ignore previous instructions", "disregard" patterns |
+
+Findings are scored by severity:
+
+- **Critical** (70+): Plugin blocked in strict mode
+- **High** (50-69): Strong warning
+- **Medium** (30-49): Caution advised
+- **Low** (<30): Informational
+
+### Lockfile pinning
+
+OpenClaw maintains a lockfile at `~/.openclaw/plugins.lock` that pins verified plugin hashes. This prevents tampering after initial verification.
+
+The lockfile is HMAC-authenticated to detect modifications. The secret key is stored at `~/.openclaw/plugins.secret` (mode 0600).
+
+### Audit logging
+
+Security events are logged to `~/.openclaw/audit/plugins.jsonl`:
+
+```json5
+{
+  plugins: {
+    security: {
+      audit: {
+        enabled: true,
+        retention: 90,  // days
+      },
+    },
+  },
+}
+```
+
+Event types logged:
+
+- `load_attempt`: Plugin load started
+- `verification_pass` / `verification_fail`: Verification result
+- `hash_mismatch`: Content hash doesn't match manifest
+- `signature_invalid`: Signature verification failed
+- `scan_finding`: Malicious pattern detected
+- `trust_decision`: Trust level assigned
+
+View recent events:
+
+```bash
+tail -n 50 ~/.openclaw/audit/plugins.jsonl | jq .
+```
+
+### Trust levels
+
+Plugins are assigned trust levels based on verification results:
+
+1. **unsigned**: No security metadata present
+2. **hashed**: Content hash verified
+3. **signed**: Signature verified with trusted key
+4. **verified**: Full verification chain passed (hash + signature + lockfile)
+
+Check plugin security status:
+
+```bash
+openclaw plugins list --json | jq '.[] | {id, securityLevel, securityVerified}'
+```
+
+### Full configuration reference
+
+```json5
+{
+  plugins: {
+    security: {
+      mode: "permissive",           // "strict" | "permissive" | "off"
+      trustBundled: true,           // Trust bundled plugins implicitly
+      trustedKeys: [],              // Array of trusted public keys
+      lockfilePath: "~/.openclaw/plugins.lock",
+      enableScanning: true,         // Enable static analysis
+      patternsPath: null,           // Custom patterns file (optional)
+      audit: {
+        enabled: true,
+        path: "~/.openclaw/audit/plugins.jsonl",
+        format: "jsonl",            // "json" | "jsonl" | "text"
+        retention: 90,              // Days to retain
+      },
+    },
+  },
+}
+```
+
 ## Testing plugins
 
 Plugins can (and should) ship tests:

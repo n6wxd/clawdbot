@@ -43,6 +43,7 @@ Optional keys:
 - `description` (string): short plugin summary.
 - `uiHints` (object): config field labels/placeholders/sensitive flags for UI rendering.
 - `version` (string): plugin version (informational).
+- `security` (object): security metadata for verification (see below).
 
 ## JSON Schema requirements
 
@@ -60,6 +61,33 @@ Optional keys:
   validation fails and Doctor reports the plugin error.
 - If plugin config exists but the plugin is **disabled**, the config is kept and
   a **warning** is surfaced in Doctor + logs.
+
+## Security metadata
+
+Plugins can include security metadata for verification by the skill-guardian module.
+
+```json
+{
+  "id": "my-plugin",
+  "configSchema": { "type": "object", "additionalProperties": false },
+  "security": {
+    "hash": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "signature": "base64-encoded-ed25519-signature",
+    "signedBy": "publisher-key-id"
+  }
+}
+```
+
+Security fields:
+
+- `hash` (string): SHA-256 content hash of the plugin entry point, prefixed with `sha256:`.
+- `signature` (string): Base64-encoded Ed25519 signature of the canonical manifest.
+- `signedBy` (string): Key ID of the signing key (must match a trusted key in config).
+
+When `plugins.security.mode` is `strict`, plugins without valid security metadata
+are blocked (except bundled plugins when `trustBundled` is true).
+
+See [Plugin Security](/plugin#plugin-security-skill-guardian) for full configuration.
 
 ## Notes
 

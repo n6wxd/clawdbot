@@ -318,6 +318,7 @@ These run `pnpm test:live` inside the repo Docker image, mounting your local con
 - Onboarding wizard (TTY, full scaffolding): `pnpm test:docker:onboard` (script: `scripts/e2e/onboard-docker.sh`)
 - Gateway networking (two containers, WS auth + health): `pnpm test:docker:gateway-network` (script: `scripts/e2e/gateway-network-docker.sh`)
 - Plugins (custom extension load + registry smoke): `pnpm test:docker:plugins` (script: `scripts/e2e/plugins-docker.sh`)
+- Plugin security (skill-guardian verification + malicious pattern detection): `pnpm test:docker:skill-guardian` (script: `scripts/e2e/skill-guardian-docker.sh`)
 
 Useful env vars:
 

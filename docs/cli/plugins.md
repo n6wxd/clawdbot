@@ -42,6 +42,7 @@ openclaw plugins install <path-or-spec>
 ```
 
 Security note: treat plugin installs like running code. Prefer pinned versions.
+See [Plugin Security](/plugin#plugin-security-skill-guardian) for hash verification and malicious pattern detection.
 
 Supported archives: `.zip`, `.tgz`, `.tar.gz`, `.tar`.
 
@@ -60,3 +61,17 @@ openclaw plugins update <id> --dry-run
 ```
 
 Updates only apply to plugins installed from npm (tracked in `plugins.installs`).
+
+### Security
+
+```bash
+openclaw plugins list --json          # Shows security status per plugin
+```
+
+The `--json` output includes security metadata for each plugin:
+
+- `securityVerified`: whether the plugin passed verification
+- `securityLevel`: trust level (`unsigned`, `hashed`, `signed`, `verified`)
+- `diagnostics`: security findings and errors
+
+See [Plugin Security](/plugin#plugin-security-skill-guardian) for configuration options.
